@@ -81,12 +81,11 @@ var user = cache.users.get('1');
 // cache.todos._version === 3, since there have been 3 upserts on that collection
 ```
 
-### React Native Pollyfill
-In order to use this package with React Native you'll need to pollyfill process.nextTick before using.
+### React Native Polyfill
+In order to use this package with React Native you'll need to polyfill process.nextTick before using.
 
 ```
-if (typeof this.process === 'undefined') {
-  process = {};
+if (typeof this.process.nextTick === 'undefined') {
   process.nextTick = setImmediate;
 }
 
