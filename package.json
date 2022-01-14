@@ -1,5 +1,5 @@
 {
-  "name": "minimongo-cache",
+  "name": "@meteorrn/minimongo",
   "version": "0.0.49",
   "description": "Fork of minimongo designed for caching",
   "main": "index.js",
