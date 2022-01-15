@@ -401,10 +401,11 @@ module.exports = function () {
     });
 
     it("supports long stack traces", function (done) {
-      if (navigator.userAgent.toLowerCase().indexOf("chrome") === -1) {
-        done();
-        return;
-      }
+      // FIXME use puppeteer to simulate chrome browser environment
+      //if (navigator.userAgent.toLowerCase().indexOf("chrome") === -1) {
+      //  done();
+      //  return;
+      //}
 
       let captured_stack = null;
       this.db.on(
