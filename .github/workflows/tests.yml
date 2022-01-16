@@ -1,0 +1,51 @@
+name: Tests
+
+# This workflow runs standard unit tests to ensure basic integrity and avoid
+# regressions on pull-requests (and pushes)
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    # runs on all PR that are not drafts
+    # also runs on "synchronize" which means, when there is a push
+    # to the current branch that is used to open the PR (target branch) 
+    types: [review_requested, ready_for_review, synchronize]
+
+jobs:
+  unittest:
+    name: unit tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [12, 14, 16]
+    steps:
+    - name: Checkout ${{ matrix.node }}
+      uses: actions/checkout@v2
+
+    - name: Setup node ${{ matrix.node }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: ${{ matrix.node }}
+
+    - name: Cache dependencies ${{ matrix.node }}
+      uses: actions/cache@v1
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-${{ matrix.node }}
+    - run: npm ci
+    - run: npm run test
+    # TODO: replace prior line with the following, once coverage is implemented
+    # - run: npm run test:coverage
+
+    # with the following action we enforce PRs to have a certain coverage
+    # and ensure, changes are tested well enough so that coverage won't fail
+    # - name: check coverage
+    #  uses: VeryGoodOpenSource/very_good_coverage@v1.2.0
+    #  with:
+    #   path: './coverage/lcov.info'
+    #    # TODO increase this, once coverage is at a sufficient level
+    #    min_coverage: 30
