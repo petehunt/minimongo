@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
-var MemoryDb = require('./lib/MemoryDb');
+var MemoryDb = require("./src/MemoryDb");
 module.exports = MemoryDb;
