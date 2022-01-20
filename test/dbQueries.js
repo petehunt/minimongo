@@ -7,6 +7,7 @@
  * DS205: Consider reworking code to avoid use of IIFEs
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
+const { tickAsync } = require('./tickAsync');
 const MemoryDb = require("../src/MemoryDb");
 const _ = require("lodash");
 const chai = require("chai");
@@ -23,6 +24,16 @@ const error = function (err) {
 // c.arrint is an array of integer values
 // @reset(done) must truncate the collection
 module.exports = function () {
+  before(function (done) {
+    this.reset = (done) => {
+      this.db = new MemoryDb(true);
+      this.db.addCollection("scratch");
+      this.col = this.db.scratch;
+      return done();
+    };
+    return this.reset(done);
+  });
+
   before(function () {
     // Test a filter to return specified rows (in order)
     return (this.testFilter = function (filter, ids, done) {
@@ -42,16 +53,14 @@ module.exports = function () {
       });
     });
 
-    it("finds all rows", function (done) {
+    it("finds all rows", async function () {
       const results = this.col.find({});
       assert.equal(results.length, 3);
-      return done();
     });
 
-    it("finds all rows with options", function (done) {
+    it("finds all rows with options", async function () {
       const results = this.col.find({}, {});
       assert.equal(3, results.length);
-      return done();
     });
 
     it("filters by id", function (done) {
@@ -144,72 +153,62 @@ module.exports = function () {
       return done();
     });
 
-    it("includes subfields", function (done) {
+    it("includes subfields", async function () {
       const results = this.col.find({ _id: "1" }, { fields: { "c.d": 1 } });
       assert.deepEqual(results[0], { _id: "1", c: { d: 1 } });
-      return done();
     });
 
-    it("ignores non-existent subfields", function (done) {
+    it("ignores non-existent subfields", async function () {
       const results = this.col.find({ _id: "1" }, { fields: { "x.y": 1 } });
       assert.deepEqual(results[0], { _id: "1" });
-      return done();
     });
 
-    it("excludes fields", function (done) {
+    it("excludes fields", async function () {
       const results = this.col.find({ _id: "1" }, { fields: { a: 0 } });
       assert.isUndefined(results[0].a);
       assert.equal(results[0].b, 1);
-      return done();
     });
 
-    it("excludes subfields", function (done) {
+    it("excludes subfields", async function () {
       const results = this.col.find({ _id: "1" }, { fields: { "c.d": 0 } });
       assert.deepEqual(results[0].c, { e: 2 });
-      return done();
     });
 
-    it("can get", function (done) {
+    it("can get", async function () {
       const result = this.col.get("2");
       assert.equal("Charlie", result.a);
-      return done();
     });
 
-    it("can get missing", function (done) {
+    it("can get missing", async function () {
       const result = this.col.get("999", "honker burger");
       assert.equal("honker burger", result);
-      return done();
     });
 
-    it("finds one row", function (done) {
+    it("finds one row", async function () {
       const result = this.col.findOne({ _id: "2" });
       assert.equal("Charlie", result.a);
-      return done();
     });
 
-    it("emits events", function (done) {
+    it("emits events", async function () {
       const events = [];
       this.db.on("change", (changeRecords) => events.push(changeRecords));
       this.col.upsert({ _id: 1, name: "x" });
       assert.deepEqual(events, []);
 
-      return process.nextTick(() => {
-        assert.deepEqual(events, [{ scratch: [{ _id: "1", _version: 2 }] }]);
+      await tickAsync()
+      assert.deepEqual(events, [{ scratch: [{ _id: "1", _version: 2 }] }]);
+      events.length = 0;
 
-        events.length = 0;
+      this.col.upsert({ _id: 1, name: "y" });
+      this.col.del(1);
 
-        this.col.upsert({ _id: 1, name: "y" });
-        this.col.del(1);
+      assert.deepEqual(events, []);
 
-        assert.deepEqual(events, []);
-        return process.nextTick(function () {
-          assert.deepEqual(events, [{ scratch: [{ _id: "1", _version: 4 }] }]);
-          return done();
-        });
-      });
+      await tickAsync()
+      assert.deepEqual(events, [{ scratch: [{ _id: "1", _version: 4 }] }]);
     });
 
-    it("supports observable queries", function (done) {
+    it("supports observable queries", async function () {
       const subscribeEvents = [];
       let queryEvents = 0;
       let getQueryEvents = 0;
@@ -239,30 +238,29 @@ module.exports = function () {
 
       this.col.upsert({ _id: "1", a: "Bob", b: null, c: null });
 
-      return process.nextTick(() => {
-        assert.deepEqual(subscribeEvents, [
-          [{ _id: "1", _version: 2, a: "Bob", b: null, c: null }],
-        ]);
-        assert.equal(queryEvents, 1);
-        assert.equal(getQueryEvents, 1);
+      await tickAsync()
 
-        subscribeEvents.length = 0;
-        queryEvents = 0;
-        getQueryEvents = 0;
+      assert.deepEqual(subscribeEvents, [
+        [{ _id: "1", _version: 2, a: "Bob", b: null, c: null }],
+      ]);
+      assert.equal(queryEvents, 1);
+      assert.equal(getQueryEvents, 1);
 
-        // Updating a collection should not trigger get() updates or re-renders
-        this.col.upsert({ _id: "2", a: "Jimbo" });
-        return process.nextTick(() => {
-          assert.deepEqual(subscribeEvents, []);
-          assert.equal(queryEvents, 1);
-          assert.equal(getQueryEvents, 0);
+      subscribeEvents.length = 0;
+      queryEvents = 0;
+      getQueryEvents = 0;
 
-          return done();
-        });
-      });
+      // Updating a collection should not trigger get() updates or re-renders
+      this.col.upsert({ _id: "2", a: "Jimbo" });
+
+      await tickAsync()
+
+      assert.deepEqual(subscribeEvents, []);
+      assert.equal(queryEvents, 1);
+      assert.equal(getQueryEvents, 0);
     });
 
-    it("supports server queries", function (done) {
+    it("supports server queries", async function () {
       const { col } = this;
       const { db } = this;
 
@@ -300,21 +298,20 @@ module.exports = function () {
       const sub = this.db.observe(() => serverQuery({ name: "x" }));
       sub.subscribe((result) => logs.push("result " + JSON.stringify(result)));
       serverQuery.getInstance({ name: "x" }).setState({ name: "next" });
-      return process.nextTick(function () {
-        assert.deepEqual(logs, [
-          "didMount",
-          'query() {"name":"pete"}',
-          "result []",
-          'didUpdateProps {"name":"x"}, {"name":"x"}',
-          'query() {"name":"next"}',
-          "result []",
-        ]);
 
-        return done();
-      });
+      await tickAsync()
+      assert.deepEqual(logs, [
+        "didMount",
+        'query() {"name":"pete"}',
+        "result []",
+        'didUpdateProps {"name":"x"}, {"name":"x"}',
+        'query() {"name":"next"}',
+        "result []",
+      ]);
+
     });
 
-    it("does not remount server queries", function (done) {
+    it("does not remount server queries", async function () {
       let num_mounts = 0;
       const serverQuery = this.db.createServerQuery({
         statics: {
@@ -331,10 +328,9 @@ module.exports = function () {
       serverQuery({ a: "x", b: "z" });
       assert.equal(num_mounts, 1);
       serverQuery({ a: "y", b: "z" });
-      return done();
     });
 
-    it("synchronously sets state", function (done) {
+    it("synchronously sets state", async function () {
       let num_queries = 0;
       const serverQuery = this.db.createServerQuery({
         statics: {
@@ -351,10 +347,9 @@ module.exports = function () {
       });
       serverQuery({ a: "x", b: "y" });
       assert.equal(num_queries, 1);
-      return done();
     });
 
-    it("asynchronously sets state", function (done) {
+    it("asynchronously sets state", async function () {
       let num_queries = 0;
       const serverQuery = this.db.createServerQuery({
         statics: {
@@ -371,10 +366,9 @@ module.exports = function () {
         .subscribe(function (x) {});
       assert.equal(num_queries, 1);
       serverQuery.getInstance({ a: "x" }).setState({});
-      return process.nextTick(function () {
+
+      await tickAsync()
         assert.equal(num_queries, 2);
-        return done();
-      });
     });
 
     it("serializes and deseralizes", function (done) {
@@ -386,7 +380,7 @@ module.exports = function () {
     });
 
     it("does not allow cascading writes", function (done) {
-      this.db.on("change", (changeRecords) => {
+      this.db.on("change", (/* changeRecords */) => {
         let thrown_exception = null;
         try {
           this.col.upsert({ _id: 2, name: "y" });
@@ -400,13 +394,7 @@ module.exports = function () {
       return this.col.upsert({ _id: 1, name: "x" });
     });
 
-    it("supports long stack traces", function (done) {
-      // FIXME use puppeteer to simulate chrome browser environment
-      //if (navigator.userAgent.toLowerCase().indexOf("chrome") === -1) {
-      //  done();
-      //  return;
-      //}
-
+    it("supports long stack traces", async function () {
       let captured_stack = null;
       this.db.on(
         "change",
@@ -414,10 +402,9 @@ module.exports = function () {
       );
 
       this.col.upsert({ _id: 1, name: "x" });
-      return process.nextTick(() => {
-        assert(captured_stack.indexOf("upsert") > -1);
-        return done();
-      });
+
+      await tickAsync()
+      assert(captured_stack.indexOf("upsert") > -1);
     });
 
     it("dels item", function (done) {
