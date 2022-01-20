@@ -34,6 +34,7 @@
     "vinyl-source-stream": "^0.1.1"
   },
   "dependencies": {
+    "base64-js": "^1.5.1",
     "eventemitter3": "^1.1.0",
     "invariant": "^2.1.1",
     "lodash": "~2.4.1",

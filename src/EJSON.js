@@ -1,9 +1,13 @@
 var _ = require("lodash");
 
+// we use the same mechanism as react-native does:
+// https://github.com/facebook/react-native/blob/main/Libraries/Utilities/binaryToBase64.js
+// so there are no extra deps when using rn
+// also, base64-js is fully js and browser-compatible
+const base64 = require("base64-js");
+
 var EJSON = {}; // Global!
 var customTypes = {};
-
-
 
 /**
  * Add a custom type, using a method of your choice to get to and
@@ -19,7 +23,7 @@ var customTypes = {};
  * @param name
  * @param factory
  */
-EJSON.addType = function addType (name, factory) {
+EJSON.addType = function addType(name, factory) {
   if (_.has(customTypes, name))
     throw new Error("Type " + name + " already present");
   customTypes[name] = factory;
@@ -53,10 +57,10 @@ var builtinConverters = [
       );
     },
     toJSONValue: function (obj) {
-      return { $binary: EJSON._base64Encode(obj) };
+      return { $binary: _base64Encode(obj) };
     },
     fromJSONValue: function (obj) {
-      return EJSON._base64Decode(obj.$binary);
+      return _base64Decode(obj.$binary);
     },
   },
   {
@@ -106,8 +110,22 @@ var builtinConverters = [
   },
 ];
 
-EJSON._isCustomType = function _isCustomType (obj) {
-  return (
+const _base64Decode = (str) => {
+  return base64.toByteArray(str);
+};
+
+const _base64Encode = (obj) => {
+  return base64.fromByteArray(obj);
+};
+
+/**
+ * Returns, whether an object is of a custom registered type
+ * @private
+ * @param obj
+ * @return {boolean}
+ */
+EJSON._isCustomType = function _isCustomType(obj) {
+  return !!(
     obj &&
     typeof obj.toJSONValue === "function" &&
     typeof obj.typeName === "function" &&
@@ -151,7 +169,7 @@ var toJSONValueHelper = function (item) {
  * @param item {object} A value to serialize to plain JSON.
  * @return {object}
  */
-EJSON.toJSONValue = function toJSONValue (item) {
+EJSON.toJSONValue = function toJSONValue(item) {
   var changed = toJSONValueHelper(item);
   if (changed !== undefined) return changed;
   if (typeof item === "object") {
@@ -214,7 +232,7 @@ var fromJSONValueHelper = function (value) {
  * @param item {object} A value to deserialize into EJSON.
  * @return {object}
  */
-EJSON.fromJSONValue = function fromJSONValue (item) {
+EJSON.fromJSONValue = function fromJSONValue(item) {
   var changed = fromJSONValueHelper(item);
   if (changed === item && typeof item === "object") {
     item = EJSON.clone(item);
@@ -232,7 +250,7 @@ EJSON.fromJSONValue = function fromJSONValue (item) {
  * @param item {object} A value to stringify.
  * @return {string}
  */
-EJSON.stringify = function stringify (item) {
+EJSON.stringify = function stringify(item) {
   return JSON.stringify(EJSON.toJSONValue(item));
 };
 
@@ -241,11 +259,16 @@ EJSON.stringify = function stringify (item) {
  * @param item
  * @return {Object|any}
  */
-EJSON.parse = function parse (item) {
+EJSON.parse = function parse(item) {
   return EJSON.fromJSONValue(JSON.parse(item));
 };
 
-EJSON.isBinary = function isBinary (obj) {
+/**
+ *
+ * @param obj
+ * @return {boolean|any}
+ */
+EJSON.isBinary = function isBinary(obj) {
   return (
     (typeof Uint8Array !== "undefined" && obj instanceof Uint8Array) ||
     (obj && obj.$Uint8ArrayPolyfill)
@@ -262,7 +285,7 @@ EJSON.isBinary = function isBinary (obj) {
  * @param options
  * @return {*}
  */
-EJSON.equals = function quals (a, b, options) {
+EJSON.equals = function quals(a, b, options) {
   var i;
   var keyOrderSensitive = !!(options && options.keyOrderSensitive);
   if (a === b) return true;
@@ -280,8 +303,16 @@ EJSON.equals = function quals (a, b, options) {
     return true;
   }
   if (typeof a.equals === "function") return a.equals(b, options);
-  if (a instanceof Array) {
-    if (!(b instanceof Array)) return false;
+
+  const aIsArray = a instanceof Array;
+  const bIsArray = b instanceof Array;
+
+  // if not both or none are array they are not equal
+  if (aIsArray !== bIsArray) {
+    return false;
+  }
+
+  if (aIsArray || bIsArray) {
     if (a.length !== b.length) return false;
     for (i = 0; i < a.length; i++) {
       if (!EJSON.equals(a[i], b[i], options)) return false;
@@ -326,17 +357,18 @@ EJSON.equals = function quals (a, b, options) {
   }
 };
 
-EJSON.clone = function clone (v) {
+/**
+ *
+ * @param v
+ * @return {*}
+ */
+EJSON.clone = function clone(v) {
   var ret;
   if (typeof v !== "object") return v;
   if (v === null) return null; // null has typeof "object"
   if (v instanceof Date) return new Date(v.getTime());
   if (EJSON.isBinary(v)) {
-    ret = EJSON.newBinary(v.length);
-    for (var i = 0; i < v.length; i++) {
-      ret[i] = v[i];
-    }
-    return ret;
+    return Uint8Array.from(v);
   }
   if (_.isArray(v) || _.isArguments(v)) {
     // For some reason, _.map doesn't work in this context on Opera (weird test
