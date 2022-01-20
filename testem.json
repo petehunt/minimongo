@@ -1,9 +1,0 @@
-{
-  "framework": "mocha",
-  "serve_files": ["test/browserified.js"],
-  "src_files": ["src/*.js", "src/*.coffee", "test/*.coffee"],
-  "launchers": {},
-  "before_tests": "gulp prepareTests",
-  "on_exit": "rm test/browserified.js",
-  "launch_in_dev": []
-}

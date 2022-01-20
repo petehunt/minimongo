@@ -18,13 +18,29 @@ const error = function (err) {
   return assert.fail(JSON.stringify(err));
 };
 
+
+
 // Runs queries on @col which must be a collection (with a:<string>, b:<integer>, c:<json>, geo:<geojson>, stringarr: <json array of strings>)
 // When present:
 // c.arrstr is an array of string values
 // c.arrint is an array of integer values
 // @reset(done) must truncate the collection
-module.exports = function () {
+module.exports = function (pageFn = () => {}) {
   before(function (done) {
+    this.exec = function (fn) {
+      const page = pageFn()
+
+      if (page) {
+        return page.evaluate(() => {
+          console.debug('13123123')
+        })
+      }
+
+      else {
+        return fn.call(this)
+      }
+    }.bind(this)
+
     this.reset = (done) => {
       this.db = new MemoryDb(true);
       this.db.addCollection("scratch");
@@ -54,8 +70,10 @@ module.exports = function () {
     });
 
     it("finds all rows", async function () {
-      const results = this.col.find({});
-      assert.equal(results.length, 3);
+      this.exec(function () {
+        const results = this.col.find({});
+        assert.equal(results.length, 3);
+      })
     });
 
     it("finds all rows with options", async function () {

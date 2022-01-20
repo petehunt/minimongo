@@ -2,16 +2,24 @@ var _ = require("lodash");
 
 var EJSON = {}; // Global!
 var customTypes = {};
-// Add a custom type, using a method of your choice to get to and
-// from a basic JSON-able representation.  The factory argument
-// is a function of JSON-able --> your object
-// The type you add must have:
-// - A clone() method, so that Meteor can deep-copy it when necessary.
-// - A equals() method, so that Meteor can compare it
-// - A toJSONValue() method, so that Meteor can serialize it
-// - a typeName() method, to show how to look it up in our type table.
-// It is okay if these methods are monkey-patched on.
-EJSON.addType = function (name, factory) {
+
+
+
+/**
+ * Add a custom type, using a method of your choice to get to and
+ * from a basic JSON-able representation.  The factory argument
+ * is a function of JSON-able --> your object
+ * The type you add must have:
+ * - A clone() method, so that Meteor can deep-copy it when necessary.
+ * - A equals() method, so that Meteor can compare it
+ * - A toJSONValue() method, so that Meteor can serialize it
+ * - a typeName() method, to show how to look it up in our type table.
+ * It is okay if these methods are monkey-patched on.
+ *
+ * @param name
+ * @param factory
+ */
+EJSON.addType = function addType (name, factory) {
   if (_.has(customTypes, name))
     throw new Error("Type " + name + " already present");
   customTypes[name] = factory;
@@ -98,7 +106,7 @@ var builtinConverters = [
   },
 ];
 
-EJSON._isCustomType = function (obj) {
+EJSON._isCustomType = function _isCustomType (obj) {
   return (
     obj &&
     typeof obj.toJSONValue === "function" &&
@@ -138,7 +146,12 @@ var toJSONValueHelper = function (item) {
   return undefined;
 };
 
-EJSON.toJSONValue = function (item) {
+/**
+ * Serialize an EJSON-compatible value into its plain JSON representation.
+ * @param item {object} A value to serialize to plain JSON.
+ * @return {object}
+ */
+EJSON.toJSONValue = function toJSONValue (item) {
   var changed = toJSONValueHelper(item);
   if (changed !== undefined) return changed;
   if (typeof item === "object") {
@@ -196,7 +209,12 @@ var fromJSONValueHelper = function (value) {
   return value;
 };
 
-EJSON.fromJSONValue = function (item) {
+/**
+ * Deserialize an EJSON value from its plain JSON representation.
+ * @param item {object} A value to deserialize into EJSON.
+ * @return {object}
+ */
+EJSON.fromJSONValue = function fromJSONValue (item) {
   var changed = fromJSONValueHelper(item);
   if (changed === item && typeof item === "object") {
     item = EJSON.clone(item);
@@ -207,22 +225,44 @@ EJSON.fromJSONValue = function (item) {
   }
 };
 
-EJSON.stringify = function (item) {
+/**
+ * Serialize a value to a string.
+ * For EJSON values, the serialization fully represents the value.
+ * For non-EJSON values, serializes the same way as JSON.stringify.
+ * @param item {object} A value to stringify.
+ * @return {string}
+ */
+EJSON.stringify = function stringify (item) {
   return JSON.stringify(EJSON.toJSONValue(item));
 };
 
-EJSON.parse = function (item) {
+/**
+ * Parse a string into an EJSON value. Throws an error if the string is not valid EJSON.
+ * @param item
+ * @return {Object|any}
+ */
+EJSON.parse = function parse (item) {
   return EJSON.fromJSONValue(JSON.parse(item));
 };
 
-EJSON.isBinary = function (obj) {
+EJSON.isBinary = function isBinary (obj) {
   return (
     (typeof Uint8Array !== "undefined" && obj instanceof Uint8Array) ||
     (obj && obj.$Uint8ArrayPolyfill)
   );
 };
 
-EJSON.equals = function (a, b, options) {
+/**
+ * Return true if a and b are equal to each other.
+ * eturn false otherwise.
+ * Uses the equals method on a if present,
+ * otherwise performs a deep comparison.
+ * @param a
+ * @param b
+ * @param options
+ * @return {*}
+ */
+EJSON.equals = function quals (a, b, options) {
   var i;
   var keyOrderSensitive = !!(options && options.keyOrderSensitive);
   if (a === b) return true;
@@ -286,7 +326,7 @@ EJSON.equals = function (a, b, options) {
   }
 };
 
-EJSON.clone = function (v) {
+EJSON.clone = function clone (v) {
   var ret;
   if (typeof v !== "object") return v;
   if (v === null) return null; // null has typeof "object"
