@@ -7,7 +7,7 @@
  * DS205: Consider reworking code to avoid use of IIFEs
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
-const { tickAsync } = require('./tickAsync');
+const { tickAsync } = require("./tickAsync");
 const MemoryDb = require("../src/MemoryDb");
 const _ = require("lodash");
 const chai = require("chai");
@@ -18,8 +18,6 @@ const error = function (err) {
   return assert.fail(JSON.stringify(err));
 };
 
-
-
 // Runs queries on @col which must be a collection (with a:<string>, b:<integer>, c:<json>, geo:<geojson>, stringarr: <json array of strings>)
 // When present:
 // c.arrstr is an array of string values
@@ -28,18 +26,16 @@ const error = function (err) {
 module.exports = function (pageFn = () => {}) {
   before(function (done) {
     this.exec = function (fn) {
-      const page = pageFn()
+      const page = pageFn();
 
       if (page) {
         return page.evaluate(() => {
-          console.debug('13123123')
-        })
+          console.debug("13123123");
+        });
+      } else {
+        return fn.call(this);
       }
-
-      else {
-        return fn.call(this)
-      }
-    }.bind(this)
+    }.bind(this);
 
     this.reset = (done) => {
       this.db = new MemoryDb(true);
@@ -73,7 +69,7 @@ module.exports = function (pageFn = () => {}) {
       this.exec(function () {
         const results = this.col.find({});
         assert.equal(results.length, 3);
-      })
+      });
     });
 
     it("finds all rows with options", async function () {
@@ -213,7 +209,7 @@ module.exports = function (pageFn = () => {}) {
       this.col.upsert({ _id: 1, name: "x" });
       assert.deepEqual(events, []);
 
-      await tickAsync()
+      await tickAsync();
       assert.deepEqual(events, [{ scratch: [{ _id: "1", _version: 2 }] }]);
       events.length = 0;
 
@@ -222,7 +218,7 @@ module.exports = function (pageFn = () => {}) {
 
       assert.deepEqual(events, []);
 
-      await tickAsync()
+      await tickAsync();
       assert.deepEqual(events, [{ scratch: [{ _id: "1", _version: 4 }] }]);
     });
 
@@ -256,7 +252,7 @@ module.exports = function (pageFn = () => {}) {
 
       this.col.upsert({ _id: "1", a: "Bob", b: null, c: null });
 
-      await tickAsync()
+      await tickAsync();
 
       assert.deepEqual(subscribeEvents, [
         [{ _id: "1", _version: 2, a: "Bob", b: null, c: null }],
@@ -271,7 +267,7 @@ module.exports = function (pageFn = () => {}) {
       // Updating a collection should not trigger get() updates or re-renders
       this.col.upsert({ _id: "2", a: "Jimbo" });
 
-      await tickAsync()
+      await tickAsync();
 
       assert.deepEqual(subscribeEvents, []);
       assert.equal(queryEvents, 1);
@@ -317,7 +313,7 @@ module.exports = function (pageFn = () => {}) {
       sub.subscribe((result) => logs.push("result " + JSON.stringify(result)));
       serverQuery.getInstance({ name: "x" }).setState({ name: "next" });
 
-      await tickAsync()
+      await tickAsync();
       assert.deepEqual(logs, [
         "didMount",
         'query() {"name":"pete"}',
@@ -326,7 +322,6 @@ module.exports = function (pageFn = () => {}) {
         'query() {"name":"next"}',
         "result []",
       ]);
-
     });
 
     it("does not remount server queries", async function () {
@@ -385,8 +380,8 @@ module.exports = function (pageFn = () => {}) {
       assert.equal(num_queries, 1);
       serverQuery.getInstance({ a: "x" }).setState({});
 
-      await tickAsync()
-        assert.equal(num_queries, 2);
+      await tickAsync();
+      assert.equal(num_queries, 2);
     });
 
     it("serializes and deseralizes", function (done) {
@@ -421,7 +416,7 @@ module.exports = function (pageFn = () => {}) {
 
       this.col.upsert({ _id: 1, name: "x" });
 
-      await tickAsync()
+      await tickAsync();
       assert(captured_stack.indexOf("upsert") > -1);
     });
 

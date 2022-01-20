@@ -1,5 +1,6 @@
-const tickAsync = () => new Promise((resolve)=> {
-  process.nextTick(() => resolve())
-})
+const tickAsync = () =>
+  new Promise((resolve) => {
+    process.nextTick(() => resolve());
+  });
 
-module.exports = { tickAsync }
+module.exports = { tickAsync };
